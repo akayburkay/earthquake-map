@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-measure@3.3.1/dist/leaflet-measure.css" />
+    <title>Deprem Verileri</title>
+
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        .sidebar {
+            width: 200px;
+            background-color: 	#1e3a2a;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            color: #e5f9e0;
+        }
+
+        .sidebar h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+        .sidebar h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .layer-checkbox {
+            margin-bottom: 10px;
+            transform: scale(1);
+        }
+
+        .layer-checkbox label {
+            font-size: 18px;
+        }
+
+        #map {
+            flex: 1;
+        }
+
+        .depremler-content {
+            display: none;
+            padding-left: 20px;
+        }
+
+        .depremler-content input[type="checkbox"] {
+            margin-bottom: 5px;
+        }
+
+        .layer-selector {
+            position: absolute;
+            bottom: 40px;
+            right: 20px;
+            z-index: 1000;
+            background-color: rgba(75, 95, 81, 0.8);
+            padding: 6px 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .layer-selector select {
+            font-size: 14px;
+            border: none;
+            background: transparent;
+            outline: none;
+        }
+
+        #deprem-toggle {
+            background-color: #517e59;
+            color: aliceblue;
+            padding: 3px 7px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .legend-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.legend-line {
+    display: inline-block;
+    width: 20px; 
+    height: 3px; 
+    margin-right: 6px;
+    vertical-align: middle;
+}
+/* Genel stil */
+#map {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+/* Harita kontrol butonları - Flex düzen ile hizalama */
+.map-controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 12px;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+}
+
+/* Buton stilleri */
+.map-btn {
+    background-color: #517e59;
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 24px;
+    transition: all 0.3s ease;
+    position: relative;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Hover efekti */
+.map-btn:hover {
+    background-color: #38b94c;
+    transform: scale(1.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* İkonlar */
+.map-btn i {
+    font-size: 20px; /* İkon boyutu */
+}
+
+/* Tooltip - Butonların üzerine gelindiğinde açıklama metni */
+.tooltip-text {
+    display: none;
+    position: absolute;
+    bottom: 110%; /* Tooltip, butonun hemen üstünde gösterilir */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 14px;
+    white-space: nowrap;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Butonlar üzerine gelindiğinde tooltip metni gösterilsin */
+.map-btn:hover .tooltip-text {
+    display: block;
+    opacity: 1;
+}
+
+/* İkonlar ve tooltip metinleri arasındaki uyum */
+.map-btn:hover .tooltip-text {
+    top: -35px;  /* Tooltip metnini butonun üstünde daha estetik konumlandır */
+}
+
+.distance-label {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px 16px;
+  border: 2px solid #444;
+  border-radius: 15px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #d31818;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+.map-measure-cursor {
+  cursor: crosshair !important;
+}
+
+
+
+    </style>
+</head>
+<body>
+    <body>
+        <div class="sidebar">
+            <h3>Deprem Verileri</h3>
+            <h3 id="deprem-toggle">Depremler &#9654;</h3>
+            <div class="depremler-content" id="deprem-content">
+
+                <div class="layer-checkbox">
+                    <input type="checkbox" id="fayCheckbox">
+                    <label for="fayCheckbox">
+                        <span class="legend-line" style="background-color: #ff0000;"></span>Diri Faylar</label>
+                </div>
+
+                <div class="layer-checkbox">
+                    <input type="checkbox" id="category4">
+                    <label for="category4">
+                        <span class="legend-dot" style="background-color: #2bbd2b;"></span>
+                        4.0 – 4.9
+                    </label>
+                </div>
+                <div class="layer-checkbox">
+                    <input type="checkbox" id="category1">
+                    <label for="category1">
+                        <span class="legend-dot" style="background-color: #f1e84d;"></span>
+                        5.0 – 5.9
+                    </label>
+                </div>
+                <div class="layer-checkbox">
+                    <input type="checkbox" id="category2">
+                    <label for="category2">
+                        <span class="legend-dot" style="background-color: #e88310;"></span>
+                        6.0 – 6.9
+                    </label>
+                </div>
+                <div class="layer-checkbox">
+                    <input type="checkbox" id="category3">
+                    <label for="category3">
+                        <span class="legend-dot" style="background-color: #940404;"></span>
+                        7.0+
+                    </label>
+                </div>
+                
+
+            </div> <!-- Burası sidebar kapanışı -->
+        </div>
+    
+        <div id="map"></div> <!-- HARİTA ARTIK DOĞRU YERDE -->
+    
+        <div class="layer-selector">
+            <select id="basemap-select">
+                <option value="dark">CartoDB Dark</option>
+                <option value="osm">OpenStreetMap</option>
+                <option value="topo">Esri Topoğrafik</option>
+            </select>
+        </div>
+
+        <div class="map-controls">
+            <button id="measureBtn" class="map-btn" title="Mesafe Ölçme">
+                <i class="fas fa-ruler"></i>
+                <span class="tooltip-text">Mesafe Ölç</span>
+            </button>
+            <button id="get-location" class="map-btn" title="Konum">
+                <i class="fas fa-location-arrow"></i>
+                <span class="tooltip-text">Konum</span>
+            </button>
+        </div>
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/data.js') }}"></script>
+
+</body>
+</html>
